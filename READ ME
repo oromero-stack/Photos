@@ -1,0 +1,117 @@
+/************************************ CONFIGURACIÓN ************************************/
+// Reemplaza con tus datos
+var SERVICE_ACCOUNT_EMAIL = "firmas-gmail@firmas-454316.iam.gserviceaccount.com"; // Email de la cuenta de servicio
+var PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC+OpgxVvZhYitE\nrCfz2cJHbMjRG2zthCyx3oIAnjq5F5lYkS6MHMq79U4MYqTK/93749EhF+b6xl91\nzrYHMMNvtGdHa9NNmi0rk3uVf+2PjX4ccLcBttD0WvKloAUt2HcMOwwbGQfDNbl2\nVKzKMdSu3H8pr3LdmOXxyO+RkvOBoYqyQG7wp7m69lI61I+tb/tvjUXd/ycrQV2W\nOBO5CGPEnOGwCVevpe+zAxuF3eW07e/h7yGheVvpqvsR3QgkZuecNVxr/0aZnhmF\nG+yjo3Jm3ckI41rYQOcJ+vmPjmAAtBrhr8ZobepxmZLFmbJiEOUpQBxVeqHPqczS\nd2zdSTBLAgMBAAECggEAV+SJ2k40Y3VwyXeDtDM6hTbZqGg0EaAe6IYG6hMxzcB+\nHUJjT+CjuWmTiLxxKMxE/DPcNh6tndPXWn7KcxMQUcX4bDMBPBtO4JHxqXckw82b\n5bccj4GxFR4KfAUuL2sTQkbsBn8vq33gtbBU781LWAnQBWonuASDxg3RxyCvOwak\n46BhHJIW4n457NLhJVU+G+0G+FDrvRSJnfDRmSYBncvJBO9GTBLysaEanh7AFi2J\nsl9K+q/wp419eGfBOE6HU0D+bxLEF/Cy4CAmt2pg0Y0ckGAp13hxRbDscxF/5OGs\nVvAZz9Q3kCn6/ElR5tzy50+yUtWhbLujxLupcoDirQKBgQDpxeJOYlv8Qmm8B3Lf\nI5auB+Zn/Jf12VMxw9/akgX9mWCZ5OZQlUplOCoAMhcojJAUhtIEnQ6Wc/Iq4NFM\nMeYCZi5E/bz/dx0NHHzOO8AEAV8jabaI+oc+HNP9NASr51j5XcE4gYLynsG/eBHd\n9AtoLM9T4tmx/4S6iCaiLQCdVQKBgQDQUNT4pdbfZ9wGHSgs5AkvBverYDsh95B7\nvGkX7E91KgtT1J67reh9D/DsszFIQ94LyGcBS7rK3/hOA2yzFRrTXarKT2UUGlwy\not8RfcesgJMKvUdjyB9EAaXme2+093QnWziCog/JkjsXEwqPoahBn0PY6py9wrgH\nLrRZD8WXHwKBgQCmncl8QJJ7KwKdZ1myPHVKuIq5lsjgCvNGxuqnp+fpJgY56XFW\nAfGyTuNwnELxPa37U1QgwagCB8WUVgQWoIHlN9rGhWrNUaI9FA7IFsH2mNusK85T\ntuvpkzZsg0TJGOzLXs02buhb8Fb7FqL1ZNk0eKuUiFzMhuec4ylV8Wk8uQKBgQCi\nfwtCUosEhg25rzDRo6gOSQ8VXeGCo4zPGK+Z+7oXmQ5w/CA+InCCbdbvrPA6gMZK\nxq6i8iHpc0BMCpvWLhZY3m4Fll0wi0d0MFx1VnpVc45ACFoR2d+ZuvdgjNUcgxLW\nSHASZryN7kWtwCqy09VeKxBPuuM9mxDWeXYxKv5k3QKBgQDouIWXB1lYk5H0/Wf1\nFVAvxapU5pVjEfA/WQxeRFvfmBswKeskqe1bp8I8mT04TK40JOFU5hheB+KjlbVS\nnchDgfyLEYZswoGS0PRetg8pPvYHxcHN3vpRSziTdDlYb2w/hS6BFmEUOQmUh9r5\nzTRhqO1rgcFegbkrKj0j2h2sFA==\n-----END PRIVATE KEY-----\n"; // Clave privada del JSON
+var ADMIN_EMAIL = "oromero@grupoasesores.com.mx"; // Tu email de superadmin
+var DOMINIO = "grupoasesores.com.mx";
+
+/************************************ AUTENTICACIÓN ************************************/
+function getOAuthService(userEmail) {
+  return OAuth2.createService('Gmail:' + userEmail)
+    .setTokenUrl('https://oauth2.googleapis.com/token')
+    .setPrivateKey(PRIVATE_KEY)
+    .setIssuer(SERVICE_ACCOUNT_EMAIL) // Email de la cuenta de servicio
+    .setSubject(userEmail) // Email del superadmin (debe ser válido)
+    .setScope([
+      'https://www.googleapis.com/auth/gmail.settings.basic',
+      'https://www.googleapis.com/auth/gmail.settings.sharing',
+      'https://www.googleapis.com/auth/admin.directory.user.readonly',
+    ]);
+}
+
+/************************************ FUNCIONES PRINCIPALES ************************************/
+function setGmailSignature(email, signature) {
+  try {
+    const service = getOAuthService(email);
+    if (!service.hasAccess()) {
+      Logger.log("Error de autenticación: " + service.getLastError());
+      return false;
+    }
+
+    const accessToken = service.getAccessToken();
+    const url = `https://gmail.googleapis.com/gmail/v1/users/${encodeURIComponent(email)}/settings/sendAs/${encodeURIComponent(email)}`;
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      payload: JSON.stringify({
+        signature: signature,
+        isDefault: true
+      }),
+      muteHttpExceptions: true
+    });
+
+    if (response.getResponseCode() !== 200) {
+      Logger.log("Error en %s: %s", email, response.getContentText());
+      return false;
+    }
+
+    Logger.log("Firma actualizada para " + email);
+    return true;
+  } catch (e) {
+    Logger.log("Error crítico en %s: %s", email, e.toString());
+    return false;
+  }
+}
+
+function buildSignature(user) {
+  const photoUrl = user.thumbnailPhotoUrl || 'https://placehold.co/100x120';
+  const userData = {
+    nombre: user.name?.fullName || 'Nombre no definido',
+    puesto: user.organizations?.[0]?.title || 'Puesto no definido',
+    email: user.primaryEmail,
+ /**telefono: user.phones?.[0]?.value || 'Teléfono no definido', **/
+    foto: photoUrl
+  };
+
+  const template = HtmlService.createTemplateFromFile('firmas');
+  let html = template.getRawContent();
+  
+  html = html
+    .replace(/%NOMBRE%/g, userData.nombre)
+    .replace(/%PUESTO%/g, userData.puesto)
+    .replace(/%EMAIL%/g, userData.email)
+/** .replace(/%TELEFONO%/g, userData.telefono) **/
+    .replace(/%FOTO%/g, userData.foto);
+
+  return HtmlService.createHtmlOutput(html).getContent(); // Escapa caracteres especiales
+}
+
+/************************************ FUNCIONES DE PRUEBA ************************************/
+function testSingleUser() {
+  const testEmail = "oromero@grupoasesores.com.mx"; // Cambia este email
+  try {
+    const user = AdminDirectory.Users.get(testEmail);
+    const signature = buildSignature(user);
+    const success = setGmailSignature(testEmail, signature);
+    Logger.log(success ? "✅ Éxito" : "❌ Falló");
+  } catch (e) {
+    Logger.log("🚨 Error general: " + e.toString());
+  }
+}
+
+function updateAllSignatures() {
+  try {
+    const users = AdminDirectory.Users.list({ domain: DOMINIO, maxResults: 500 }).users;
+    if (!users || users.length === 0) {
+      Logger.log("No se encontraron usuarios.");
+      return;
+    }
+
+    users.forEach(user => {
+      try {
+        const signature = buildSignature(user);
+        setGmailSignature(user.primaryEmail, signature);
+      } catch (e) {
+        Logger.log("Error en usuario %s: %s", user.primaryEmail, e.toString());
+      }
+    });
+    
+    Logger.log("Proceso completado. Revisa los logs.");
+  } catch (e) {
+    Logger.log("Error al listar usuarios: " + e.toString());
+  }
+}
